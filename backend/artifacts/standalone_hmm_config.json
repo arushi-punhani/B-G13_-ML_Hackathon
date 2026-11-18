@@ -1,0 +1,11 @@
+{
+  "method": "PathSnap standalone geometry-only HMM with Viterbi decoding",
+  "distance_sigma": 20.0,
+  "heading_sigma": 45.0,
+  "heading_weight": 0.5,
+  "max_hops": 3,
+  "disconnect_penalty": 8.0,
+  "hop_penalty": 0.7,
+  "reset_gap": 5,
+  "max_expansions": 200000
+}
