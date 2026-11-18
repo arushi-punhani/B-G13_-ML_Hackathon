@@ -1,0 +1,8 @@
+{
+  "radius_m": 100.0,
+  "max_candidates": 8,
+  "gap_threshold_s": 3.0,
+  "max_trips_per_partition": null,
+  "projection": "trip-local azimuthal equidistant",
+  "arc_geometry": "straight line between supplied endpoints"
+}

@@ -1,0 +1,11 @@
+metric,value
+Training trips,80.0
+Student-testing trips,10.0
+Training GPS observations,208417.0
+Average training GPS observations,2605.2125
+Training missing GPS rows,0.0
+Training invalid GPS rows,0.0
+Training GPS gaps >3 s,1875.0
+Sample trip isolated road nodes,0.0
+Sample trip weak components,175.0
+Sample trip disconnected route arc pairs,0.0

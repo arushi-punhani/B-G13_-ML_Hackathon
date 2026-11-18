@@ -1,0 +1,3 @@
+partition,trips_processed,raw_observations,valid_observations,invalid_observations,duplicate_observations,raw_nodes,invalid_nodes,raw_arcs,invalid_arcs,unprojectable_arcs,nonpositive_intervals,gaps_over_threshold,observations_without_candidates,candidate_rows,candidate_coverage_pct,candidates_per_observation
+student_test,10,19160,19160,0,0,90689,0,185041,0,0,0,76,0,130919,100.0,6.832933194154489
+train,80,208417,208417,0,0,1933485,0,3876904,0,0,0,1875,1417,1358450,99.32011304260209,6.517942394334435
