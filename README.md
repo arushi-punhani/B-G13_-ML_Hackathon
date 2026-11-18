@@ -47,6 +47,11 @@ geometry and server-computed diagnostics. They do not include the reference
 route. The route-membership proxy and connected-transition rate are diagnostics,
 not official observation-level accuracy.
 
+The evaluator UI is in [`frontend/`](frontend/README.md). It connects to
+`GET /trips` and `POST /predict/{trip_id}` and displays GPS observations,
+candidate-road geometry, the reconstructed route and server diagnostics. See
+its README for exact two-laptop setup and CORS instructions.
+
 For a UI hosted on another origin, set `PATHSNAP_CORS_ORIGINS` to a
 comma-separated list of allowed origins before starting Uvicorn, for example:
 

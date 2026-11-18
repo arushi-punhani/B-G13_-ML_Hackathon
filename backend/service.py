@@ -147,6 +147,11 @@ class PathSnapService:
             int(self.config["max_expansions"]),
         )
         route_geojson = make_geojson(route, coordinates, edges)
+        # Show actual nearby candidate roads without exposing the reference route.
+        candidate_arc_ids = sorted(set(candidates["arc_id"].astype(int)) & set(edges))
+        roads_geojson = make_geojson(
+            [(arc_id, False) for arc_id in candidate_arc_ids], coordinates, edges
+        )
 
         # Reference data is read only after inference and route reconstruction.
         route_ids = pd.to_numeric(
@@ -216,6 +221,7 @@ class PathSnapService:
                 ),
             },
             "gps_track": gps_track,
+            "road_network_geojson": roads_geojson,
             "predictions": predictions,
             "predicted_route_geojson": route_geojson,
             "unresolved_gaps": unresolved_gaps,
