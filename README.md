@@ -5,12 +5,16 @@ connected route with an HMM/Viterbi decoder.
 
 ## Backend API
 
-The API serves the ten reserved trips from `Student folder/student_test`. It
+The API serves trips from `evaluator_test/` when that folder exists; otherwise
+it uses `Student folder/student_test/`. Set `PATHSNAP_PARTITION` to either
+`evaluator_test` or `student_test` before startup to explicitly select a set. It
 uses the standalone geometry-based HMM/Viterbi decoder in
 `PathSnap_Standalone_HMM_Evaluated.py` and expands disconnected predicted arcs
 through the full road network using
 `PathSnap_Full_Route_Reconstruction.py`. Decoder settings are loaded from
-`backend/artifacts/standalone_hmm_config.json`. Reference `.route` files are
+`backend/artifacts/standalone_hmm_config.json`. Evaluator candidate features are
+generated in memory on request using the existing 100 m, eight-candidate settings.
+Reference `.route` files, if present, are
 read only on the server after prediction to calculate an evaluation diagnostic;
 they are not model inputs and are never returned by the API.
 
@@ -38,7 +42,7 @@ does not require a separate learned-model artifact.
 ### Endpoints
 
 - `GET /health` — service readiness.
-- `GET /trips` — available student-test trip IDs and counts.
+- `GET /trips` — available trip IDs and their active partition.
 - `POST /predict/{trip_id}` — run candidate scoring and HMM/Viterbi decoding.
 - `GET /docs` — interactive API documentation.
 

@@ -1,4 +1,4 @@
-"""FastAPI application for PathSnap inference on reserved student-test trips."""
+"""FastAPI application for PathSnap inference on the configured trip partition."""
 
 from __future__ import annotations
 
@@ -22,15 +22,15 @@ ROOT = Path(__file__).resolve().parents[1]
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.service = PathSnapService(root=ROOT)
-    logger.info("PathSnap model loaded; reserved-trip API is ready.")
+    logger.info("PathSnap model loaded; active partition: %s", app.state.service.partition)
     yield
 
 
 app = FastAPI(
     title="PathSnap Route Matching API",
     description=(
-        "Runs the standalone geometry-based HMM/Viterbi decoder for a reserved "
-        "student-test trip. Reference route data remains server-side."
+        "Runs the standalone geometry-based HMM/Viterbi decoder for the configured "
+        "trip partition. Reference route data remains server-side."
     ),
     version="1.0.0",
     lifespan=lifespan,
@@ -77,7 +77,7 @@ def list_trips(request: Request) -> list[dict[str, Any]]:
 @app.post("/predict/{trip_id}")
 def predict_trip(trip_id: str, request: Request) -> dict[str, Any]:
     service = get_service(request)
-    logger.info("Prediction requested for reserved trip %s", trip_id)
+    logger.info("Prediction requested for %s trip %s", service.partition, trip_id)
     try:
         result = service.predict_trip(trip_id)
     except UnknownTripError as exc:
@@ -89,7 +89,7 @@ def predict_trip(trip_id: str, request: Request) -> dict[str, Any]:
         logger.exception("Prediction failed for %s", trip_id)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     logger.info(
-        "Prediction completed for %s: %s observations, route-membership proxy %.3f",
+        "Prediction completed for %s: %s observations, route-membership proxy %s",
         trip_id,
         result["metrics"]["decoded_observations"],
         result["metrics"]["route_membership_proxy_rate"],

@@ -1,2 +1,4 @@
 .venv/
 __pycache__/
+/evaluator_test/
+/preprocessing_outputs/evaluator_test/
