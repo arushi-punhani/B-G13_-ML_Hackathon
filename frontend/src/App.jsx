@@ -78,7 +78,7 @@ export default function App() {
               <option value="">{connectedUrl && !trips.length ? 'No trips available' : 'Select a trip'}</option>
               {trips.map((trip) => <option key={trip.id} value={trip.id}>{trip.label}</option>)}
             </select>
-            <p className="field-hint">{connectedUrl ? `${trips.length} trip${trips.length === 1 ? '' : 's'} available` : 'Connect to load the trip list.'}</p>
+            <p className="field-hint">{connectedUrl ? `${trips.length} trip${trips.length === 1 ? '' : 's'} available${trips[0]?.partition ? ` · ${trips[0].partition}` : ''}` : 'Connect to load the trip list.'}</p>
             <button type="submit" className="button primary" disabled={!selected || !connectedUrl || Boolean(busy)}>{busy === 'Reconstructing' ? 'Running inference…' : 'Run reconstruction'} <span>→</span></button>
           </form>
           {error && <div className="alert" role="alert"><strong>Unable to continue</strong><p>{error}</p></div>}

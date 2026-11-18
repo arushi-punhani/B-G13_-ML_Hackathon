@@ -8,7 +8,7 @@ const result = { trip_id: '00000001', gps_track: [{ longitude: 8, latitude: 50 }
 describe('backend contract', () => {
   it('preserves leading-zero trip IDs', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ([{ trip_id: '00000001' }]) }));
-    expect(await getTrips('http://127.0.0.1:8000/', undefined)).toEqual([{ id: '00000001', label: 'Trip 00000001' }]);
+    expect(await getTrips('http://127.0.0.1:8000/', undefined)).toEqual([{ id: '00000001', label: 'Trip 00000001', partition: '' }]);
   });
   it('sends the selected trip ID and strips feature properties', async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
@@ -23,6 +23,10 @@ describe('backend contract', () => {
   it('rejects mismatched trip IDs and malformed coordinates', () => {
     expect(() => validatePrediction(result, '00000002')).toThrow(/does not match/);
     expect(() => validatePrediction({ ...result, gps_track: [{ longitude: 200, latitude: 50 }] }, '00000001')).toThrow(/GPS/);
+  });
+  it('does not invent an accuracy metric when no reference is available', () => {
+    const data = validatePrediction({ ...result, metrics: { route_membership_proxy_rate: null, decoded_observations: 1 } }, '00000001');
+    expect(data.metrics.map((metric) => metric.label)).toEqual(['Decoded observations']);
   });
   it('reports backend failures and rejects duplicate trip IDs', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({ detail: 'Model unavailable' }) }));

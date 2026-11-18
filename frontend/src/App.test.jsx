@@ -9,12 +9,13 @@ it('connects, selects a server-provided trip and displays server results', async
   const user = userEvent.setup();
   const fc = (features) => ({ type: 'FeatureCollection', features });
   const f = (type, coordinates) => ({ type: 'Feature', properties: {}, geometry: { type, coordinates } });
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ([{ trip_id: '00000001' }]) }).mockResolvedValueOnce({ ok: true, json: async () => ({
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ([{ trip_id: '00000001', partition: 'evaluator_test' }]) }).mockResolvedValueOnce({ ok: true, json: async () => ({
     trip_id: '00000001', gps_track: [{ longitude: 8, latitude: 50 }], road_network_geojson: fc([]), predicted_route_geojson: fc([f('LineString', [[8, 50], [8.1, 50.1]])]), metrics: { decoded_observations: 1 },
   }) }));
   render(<App />);
   expect(screen.getByRole('button', { name: /run reconstruction/i })).toBeDisabled();
   await user.click(screen.getByRole('button', { name: /connect server/i }));
+  expect(await screen.findByText(/1 trip available · evaluator_test/i)).toBeInTheDocument();
   await user.selectOptions(await screen.findByLabelText(/evaluation trip/i), '00000001');
   await user.click(screen.getByRole('button', { name: /run reconstruction/i }));
   expect(await screen.findByText('Map for 00000001')).toBeInTheDocument();

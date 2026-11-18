@@ -34,7 +34,7 @@ export async function getTrips(baseUrl, signal) {
     if (!trip || typeof trip.trip_id !== 'string' || !trip.trip_id.trim()) {
       throw new Error('Invalid trip response: each trip needs a string trip_id.');
     }
-    return { id: trip.trip_id, label: `Trip ${trip.trip_id}` };
+    return { id: trip.trip_id, label: `Trip ${trip.trip_id}`, partition: typeof trip.partition === 'string' ? trip.partition : '' };
   });
   if (new Set(trips.map((trip) => trip.id)).size !== trips.length) throw new Error('The backend returned duplicate trip IDs.');
   return trips;
@@ -87,7 +87,7 @@ export function validatePrediction(data, requestedTripId) {
     if (typeof value !== 'number' || !Number.isFinite(value) || (format === 'percentage' && (value < 0 || value > 1))) throw new Error(`Invalid ${label} metric in the backend response.`);
     return { label, value: format === 'percentage' ? (value * 100).toFixed(2) : value, unit: format === 'percentage' ? '%' : '', description };
   });
-  return { tripId: data.trip_id, gps, roads, route, metrics, message: 'Standalone geometric HMM · Reference routes remain on the server.' };
+  return { tripId: data.trip_id, gps, roads, route, metrics, message: `Standalone geometric HMM · ${data.partition || 'trip'} partition · Reference routes remain on the server.` };
 }
 
 export async function predict(baseUrl, tripId, signal) {

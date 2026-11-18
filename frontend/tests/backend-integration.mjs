@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 const python = process.env.PATHSNAP_PYTHON || 'python';
 const apiUrl = 'http://127.0.0.1:18765';
-const backend = spawn(python, ['-m', 'uvicorn', 'backend.app:app', '--host', '127.0.0.1', '--port', '18765'], { cwd: '..', stdio: ['ignore', 'pipe', 'pipe'] });
+const backend = spawn(python, ['-m', 'uvicorn', 'backend.app:app', '--host', '127.0.0.1', '--port', '18765'], { cwd: '..', env: { ...process.env, PATHSNAP_PARTITION: 'student_test' }, stdio: ['ignore', 'pipe', 'pipe'] });
 let backendLog = '';
 backend.stderr.on('data', (data) => { backendLog += data.toString(); });
 let browser;

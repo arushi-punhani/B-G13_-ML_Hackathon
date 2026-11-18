@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,7 @@ from PathSnap_Full_Route_Reconstruction import (
     reconstruct,
 )
 from PathSnap_Standalone_HMM_Evaluated import decode_trip, standalone_emissions
+from backend.preprocessing import generate_hmm_features
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,12 +24,20 @@ CONFIG_PATH = Path(__file__).resolve().parent / "artifacts" / "standalone_hmm_co
 
 
 class UnknownTripError(Exception):
-    """Raised when a requested ID is not in the reserved student-test set."""
+    """Raised when a requested ID is not in the active partition."""
 
 
 class PathSnapService:
-    def __init__(self, root: Path = ROOT, config_path: Path = CONFIG_PATH) -> None:
+    def __init__(self, root: Path = ROOT, config_path: Path = CONFIG_PATH, partition: str | None = None) -> None:
         self.root = root
+        self.partition = partition or os.getenv("PATHSNAP_PARTITION") or (
+            "evaluator_test" if (root / "evaluator_test").is_dir() else "student_test"
+        )
+        if self.partition not in {"student_test", "evaluator_test"}:
+            raise ValueError("PATHSNAP_PARTITION must be student_test or evaluator_test")
+        self.trip_root = root / "evaluator_test" if self.partition == "evaluator_test" else root / "Student folder" / "student_test"
+        if not self.trip_root.is_dir():
+            raise FileNotFoundError(f"Trip directory not found: {self.trip_root}")
         if not config_path.is_file():
             raise FileNotFoundError(f"HMM configuration not found: {config_path}")
         self.config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -55,46 +66,44 @@ class PathSnapService:
         ):
             raise ValueError("HMM decoding configuration contains invalid values.")
 
-        manifest_path = root / "preprocessing_outputs" / "processing_manifest.csv"
-        if not manifest_path.is_file():
-            raise FileNotFoundError(f"Preprocessing manifest not found: {manifest_path}")
-        manifest = pd.read_csv(manifest_path, dtype={"trip_id": str})
-        self.trips = manifest.loc[
-            (manifest["partition"] == "student_test")
-            & (manifest["status"] == "ok"),
-            ["trip_id", "valid_observations", "candidate_rows"],
-        ].fillna(0)
-        self.trip_ids = set(self.trips["trip_id"].astype(str))
+        # Discover paths only. Never inspect evaluator observations or labels at startup.
+        self.trip_ids = {
+            path.name for path in self.trip_root.iterdir()
+            if path.is_dir() and not path.is_symlink() and re.fullmatch(r"[A-Za-z0-9_-]+", path.name)
+            and all((path / f"{path.name}.{ext}").is_file() for ext in ("track", "nodes", "arcs"))
+        }
 
     def list_trips(self) -> list[dict[str, Any]]:
         return [
             {
-                "trip_id": str(row.trip_id),
-                "observations": int(row.valid_observations),
-                "candidate_rows": int(row.candidate_rows),
+                "trip_id": trip_id,
+                "partition": self.partition,
             }
-            for row in self.trips.itertuples(index=False)
+            for trip_id in sorted(self.trip_ids)
         ]
 
     def predict_trip(self, trip_id: str) -> dict[str, Any]:
         if trip_id not in self.trip_ids:
-            raise UnknownTripError(f"Unknown student-test trip: {trip_id}")
+            raise UnknownTripError(f"Unknown {self.partition} trip: {trip_id}")
 
-        feature_dir = self.root / "preprocessing_outputs" / "student_test"
-        trip_dir = self.root / "Student folder" / "student_test" / trip_id
+        feature_dir = self.root / "preprocessing_outputs" / self.partition
+        trip_dir = self.trip_root / trip_id
         candidates_path = feature_dir / f"{trip_id}_candidates.parquet"
         observations_path = feature_dir / f"{trip_id}_observations.parquet"
         nodes_path = trip_dir / f"{trip_id}.nodes"
         arcs_path = trip_dir / f"{trip_id}.arcs"
         route_path = trip_dir / f"{trip_id}.route"
-        for path in (candidates_path, observations_path, nodes_path, arcs_path, route_path):
+        for path in (nodes_path, arcs_path, trip_dir / f"{trip_id}.track"):
             if not path.is_file():
                 raise FileNotFoundError(f"Required trip data not found: {path}")
 
-        candidates = pd.read_parquet(candidates_path)
-        observations = pd.read_parquet(observations_path).sort_values(
-            "observation_id"
-        ).reset_index(drop=True)
+        if self.partition == "student_test" and candidates_path.is_file() and observations_path.is_file():
+            candidates = pd.read_parquet(candidates_path)
+            observations = pd.read_parquet(observations_path)
+        else:
+            # Generate features in memory; no reference route or evaluator cache is used.
+            observations, candidates = generate_hmm_features(trip_dir)
+        observations = observations.sort_values("observation_id").reset_index(drop=True)
         required_features = {
             "observation_id",
             "arc_id",
@@ -154,12 +163,13 @@ class PathSnapService:
         )
 
         # Reference data is read only after inference and route reconstruction.
-        route_ids = pd.to_numeric(
-            pd.read_csv(route_path, sep=r"\s+", header=None).iloc[:, 0],
-            errors="coerce",
-        ).dropna().astype("int64").unique()
-        route_set = set(route_ids.tolist())
-        route_membership = selected["arc_id"].astype(int).isin(route_set)
+        route_membership_rate = None
+        if route_path.is_file():
+            route_ids = pd.to_numeric(
+                pd.read_csv(route_path, sep=r"\s+", header=None).iloc[:, 0],
+                errors="coerce",
+            ).dropna().astype("int64").unique()
+            route_membership_rate = float(selected["arc_id"].astype(int).isin(set(route_ids.tolist())).mean())
 
         gps_track = [
             {
@@ -183,6 +193,7 @@ class PathSnapService:
 
         return {
             "trip_id": trip_id,
+            "partition": self.partition,
             "metrics": {
                 "total_observations": len(observations),
                 "observations_with_candidates": int(
@@ -199,7 +210,7 @@ class PathSnapService:
                     if len(observations)
                     else 0.0
                 ),
-                "route_membership_proxy_rate": float(route_membership.mean()),
+                "route_membership_proxy_rate": route_membership_rate,
                 "route_membership_proxy_note": (
                     "Fraction of predicted arcs occurring anywhere in the reference "
                     "route; not observation-level accuracy."
